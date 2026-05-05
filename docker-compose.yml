@@ -1,0 +1,84 @@
+﻿services:
+  mongodb:
+    image: mongo:8.0
+    container_name: mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_DATABASE: much_todo_db
+    entrypoint: >
+      bash -c "
+        cp /data/keyfile/mongodb.key /data/keyfile/mongodb-fixed.key &&
+        chmod 400 /data/keyfile/mongodb-fixed.key &&
+        chown 999:999 /data/keyfile/mongodb-fixed.key &&
+        exec docker-entrypoint.sh mongod --replSet rs0 --bind_ip_all --keyFile /data/keyfile/mongodb-fixed.key
+      "
+    volumes:
+      - mongo_data:/data/db
+      - mongodb_config:/data/configdb
+      - ./Server/MuchToDo/mongodb.key:/data/keyfile/mongodb.key:ro
+    healthcheck:
+      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongodb:27017'}]}) }" | mongosh --port 27017 -u root -p example --authenticationDatabase admin --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+      - backend
+
+  redis:
+    image: redis:7.2
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: muchtodo-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - MONGO_URI=mongodb://root:example@mongodb:27017/much_todo_db?authSource=admin&replicaSet=rs0&directConnection=true
+      - DB_NAME=much_todo_db
+      - JWT_SECRET_KEY=your-super-secret-key-that-is-long-and-random
+      - JWT_EXPIRATION_HOURS=72
+      - ENABLE_CACHE=true
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=
+      - LOG_LEVEL=INFO
+      - LOG_FORMAT=json
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  mongo_data:
+  mongodb_config:
+  redis_data:
+
+networks:
+  backend:
+    driver: bridge
