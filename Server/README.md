@@ -109,6 +109,13 @@ go run ./cmd/api/main.go
 ```bash
 make run
 ```
+## API Testing
+
+The application was successfully tested using Swagger UI.
+
+- User registration and login endpoints are working
+- JWT token is returned upon successful login
+- Backend successfully communicates with MongoDB deployed in Kubernetes
 
 The server will start, and you should see log output in your terminal.
 
