@@ -1,0 +1,110 @@
+name: Frontend CI/CD — React to S3
+
+on:
+  push:
+    branches: [feature/full-stack]
+    paths:
+      - "Client/**"
+  pull_request:
+    branches: [feature/full-stack]
+    paths:
+      - "Client/**"
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  S3_BUCKET: ${{ secrets.S3_BUCKET_NAME }}
+  CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+
+jobs:
+  # ─────────────────────────────────────────────
+  # JOB 1: Build & Test
+  # ─────────────────────────────────────────────
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: Client/package-lock.json
+
+      - name: Install dependencies
+        working-directory: Client
+        run: npm ci
+
+      - name: Run security audit
+        working-directory: Client
+        run: npm audit --audit-level=high
+        continue-on-error: true  # Don't block on audit warnings
+
+      - name: Run linter
+        working-directory: Client
+        run: npm run lint --if-present
+        continue-on-error: true
+
+      - name: Build production bundle
+        working-directory: Client
+        run: npm run build
+        env:
+          VITE_API_URL: http://${{ secrets.ALB_DNS_NAME }}
+          CI: false  # Prevents treating warnings as errors
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: Client/dist
+          retention-days: 1
+
+  # ─────────────────────────────────────────────
+  # JOB 2: Deploy to S3 (only on push to feature/full-stack)
+  # ─────────────────────────────────────────────
+  deploy:
+    name: Deploy to S3
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/full-stack'
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: dist
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Sync build files to S3
+        run: |
+          aws s3 sync dist/ s3://${{ secrets.S3_BUCKET_NAME }} \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "index.html"
+
+          # index.html should never be cached
+          aws s3 cp dist/index.html s3://${{ secrets.S3_BUCKET_NAME }}/index.html \
+            --cache-control "no-cache, no-store, must-revalidate"
+
+      - name: Invalidate CloudFront cache
+        if: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID != '' }}
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+      - name: Deployment summary
+        run: |
+          echo "✅ Frontend deployed successfully"
+          echo "📦 S3 Bucket: ${{ secrets.S3_BUCKET_NAME }}"
+          echo "🌍 URL: http://${{ secrets.S3_BUCKET_NAME }}.s3-website-${{ secrets.AWS_REGION }}.amazonaws.com"
