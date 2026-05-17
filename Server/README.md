@@ -154,6 +154,7 @@ The `INTEGRATION=true` environment variable is required to explicitly enable the
 
 ## Other Useful Make Commands
 
+
 - **Build the binary:**  
   ```bash
   make build
