@@ -3,9 +3,12 @@ name: Frontend CI/CD - React to S3
 on:
   push:
     branches: [feature/full-stack]
+    paths:
+      - "Client/**"
   pull_request:
     branches: [feature/full-stack]
-
+    paths:
+      - "Client/**"
 jobs:
   build:
     name: Build and Test
