@@ -34,7 +34,7 @@ jobs:
           cache-dependency-path: Server/go.sum
 
       - name: Install dependencies
-        working-directory: Server
+        working-directory: Server/MuchToDo
         run: go mod tidy
 
       - name: Run vet (code quality)
@@ -42,7 +42,7 @@ jobs:
         run: go vet ./...
 
       - name: Run tests
-        working-directory: Server
+        working-directory: Server/MuchToDo
         run: go test ./... -v -timeout 60s
         continue-on-error: true
 
@@ -90,7 +90,7 @@ jobs:
 
       - name: Build tag and push Docker image
         id: build-image
-        working-directory: Server
+        working-directory: Server/MuchToDo
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
