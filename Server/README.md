@@ -60,6 +60,7 @@ cp .env.example .env
 
 Now, open the `.env` file and **change the** `JWT_SECRET_KEY` to a new, long, random string.
 
+
 Also, ensure that the `MONGO_URI` and `DB_NAME` points to your local MongoDB instance and db.
 
 You can leave the other variables as they are for local development.
