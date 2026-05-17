@@ -51,7 +51,6 @@ Create a `.env` file in the root of the project by copying the example.
 ```bash
 cp .env.example .env
 ```
-
 Now, open the `.env` file and **change the** `JWT_SECRET_KEY` to a new, long, random string.
 
 
