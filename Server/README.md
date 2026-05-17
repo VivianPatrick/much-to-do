@@ -17,8 +17,6 @@ The API is built with a clean, layered architecture to separate concerns, making
 ## Prerequisites
 
 To run this project locally, you will need the following installed:
-
-
 * **Go**: Version 1.21 or later.
 * **Swag CLI**: To generate the Swagger API documentation.
 * **Make** (optional, for easier command execution):
