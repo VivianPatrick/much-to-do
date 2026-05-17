@@ -1,5 +1,4 @@
 # MuchToDo API
-
 A robust RESTful API for a ToDo application built with Go (Golang). This project features user authentication, JWT-based session management, CRUD operations for ToDo items, and an optional Redis caching layer.
 
 
