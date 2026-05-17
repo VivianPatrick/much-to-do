@@ -27,19 +27,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # BEFORE
-      - name: Install dependencies
-        working-directory: Server
-        run: go mod download
-
-      # AFTER
-      - name: Install dependencies
-        working-directory: Server
-        run: go mod download all
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+          cache-dependency-path: Server/go.sum
 
       - name: Install dependencies
         working-directory: Server
-        run: go mod download
+        run: go mod tidy
 
       - name: Run vet (code quality)
         working-directory: Server
@@ -47,8 +43,7 @@ jobs:
 
       - name: Run tests
         working-directory: Server
-        run: |
-          go test ./... -v -timeout 60s
+        run: go test ./... -v -timeout 60s
         continue-on-error: true
 
       - name: Run vulnerability scan
@@ -93,7 +88,7 @@ jobs:
             --repository-name ${{ secrets.ECR_REPOSITORY }} \
             --region ${{ secrets.AWS_REGION }}
 
-      - name: Build, tag and push Docker image
+      - name: Build tag and push Docker image
         id: build-image
         working-directory: Server
         env:
@@ -101,11 +96,9 @@ jobs:
         run: |
           IMAGE_URI=$ECR_REGISTRY/${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}
           LATEST_URI=$ECR_REGISTRY/${{ secrets.ECR_REPOSITORY }}:latest
-
           docker build -t $IMAGE_URI -t $LATEST_URI .
           docker push $IMAGE_URI
           docker push $LATEST_URI
-
           echo "image=$IMAGE_URI" >> $GITHUB_OUTPUT
           echo "Built and pushed: $IMAGE_URI"
 
@@ -115,7 +108,7 @@ jobs:
             --repository-name ${{ secrets.ECR_REPOSITORY }} \
             --image-id imageTag=${{ github.sha }} \
             --region ${{ secrets.AWS_REGION }}
-          echo "Image scan started - check ECR console for results"
+          echo "Image scan started"
         continue-on-error: true
 
   # ─────────────────────────────────────────────
@@ -144,8 +137,6 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           IMAGE_URI=$ECR_REGISTRY/${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}
-
-          # Send deploy command to EC2 instance via SSM (no SSH needed)
           aws ssm send-command \
             --document-name "AWS-RunShellScript" \
             --targets "Key=tag:Name,Values=starttech-server" \
@@ -154,14 +145,14 @@ jobs:
               'docker pull $IMAGE_URI',
               'docker stop starttech-backend || true',
               'docker rm starttech-backend || true',
-              'docker run -d --name starttech-backend --restart unless-stopped -p 8080:8080 --log-driver=awslogs --log-opt awslogs-group=/starttech/dev/backend --log-opt awslogs-stream=\$(curl -s http://169.254.169.254/latest/meta-data/instance-id) $IMAGE_URI',
+              'docker run -d --name starttech-backend --restart unless-stopped -p 8080:8080 $IMAGE_URI',
               'docker system prune -f'
             ]" \
             --region ${{ secrets.AWS_REGION }} \
             --output text
           echo "Deploy command sent to EC2 via SSM"
 
-      - name: Trigger ASG instance refresh (rolling update)
+      - name: Trigger ASG instance refresh
         run: |
           aws autoscaling start-instance-refresh \
             --auto-scaling-group-name starttech-asg \
@@ -177,11 +168,6 @@ jobs:
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             http://${{ secrets.ALB_DNS_NAME }}/health || echo "000")
           echo "Health check status: $STATUS"
-          if [ "$STATUS" = "200" ]; then
-            echo "Health check passed"
-          else
-            echo "Health check returned $STATUS - deployment may still be starting"
-          fi
         continue-on-error: true
 
       - name: Deployment summary
