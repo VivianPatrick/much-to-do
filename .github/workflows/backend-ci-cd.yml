@@ -1,4 +1,4 @@
-name: Backend CI/CD (Production Grade)
+name: Backend CI/CD - Production Stable
 
 on:
   push:
@@ -13,70 +13,66 @@ on:
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
-  APP_DIR: Server
 
 jobs:
 
 # ─────────────────────────────
-# 1. VALIDATION (STRUCTURE CHECK)
+# 1. VALIDATION
 # ─────────────────────────────
   validate:
-    name: Validate Project Structure
+    name: Validate Structure
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Validate Go module (hard fail safe)
+      - name: Confirm Go module exists
         run: |
-          cd $APP_DIR
-          test -f go.mod
-          test -f go.sum
+          test -f Server/go.mod
+          test -f Server/go.sum
 
-      - name: Print directory tree
-        run: |
-          cd $APP_DIR
-          ls -la
+      - name: Show project structure
+        run: ls -R Server
 
 
 # ─────────────────────────────
-# 2. TEST JOB (GO SAFE EXECUTION)
+# 2. TEST
 # ─────────────────────────────
   test:
-    name: Test Go Service
+    name: Test Backend
     runs-on: ubuntu-latest
     needs: validate
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Go environment
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.21"
           cache: true
 
       - name: Download dependencies
-        run: cd $APP_DIR && go mod download
+        run: cd Server && go mod download
 
-      - name: Run static analysis
-        run: cd $APP_DIR && go vet ./...
+      - name: Run vet
+        run: cd Server && go vet ./...
 
-      - name: Run unit tests
-        run: cd $APP_DIR && go test ./... -v -timeout 60s
+      - name: Run tests
+        run: cd Server && go test ./... -v -timeout 60s
 
       - name: Vulnerability scan
         run: |
-          cd $APP_DIR
+          cd Server
           go install golang.org/x/vuln/cmd/govulncheck@latest
           govulncheck ./...
         continue-on-error: true
 
 
 # ─────────────────────────────
-# 3. BUILD JOB (DOCKER IMAGE)
+# 3. BUILD
 # ─────────────────────────────
   build:
     name: Build & Push Docker Image
@@ -84,7 +80,7 @@ jobs:
     needs: test
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Configure AWS credentials
@@ -98,14 +94,14 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build Docker image (stable context)
+      - name: Build Docker image
         run: |
           IMAGE=${{ steps.ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}
 
           docker build \
-            -f $APP_DIR/Dockerfile \
+            -f Server/Dockerfile \
             -t $IMAGE \
-            $APP_DIR
+            Server
 
           docker push $IMAGE
 
@@ -113,7 +109,7 @@ jobs:
 
 
 # ─────────────────────────────
-# 4. DEPLOY JOB (EC2 SSM SAFE DEPLOY)
+# 4. DEPLOY
 # ─────────────────────────────
   deploy:
     name: Deploy to EC2
@@ -132,7 +128,7 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Deploy via SSM (immutable release)
+      - name: Deploy via SSM
         run: |
           IMAGE=${{ steps.ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}
 
@@ -148,7 +144,7 @@ jobs:
             ]" \
             --region ${{ secrets.AWS_REGION }}
 
-      - name: Health check
+      - name: Health Check
         run: |
           sleep 20
           curl -f http://${{ secrets.ALB_DNS_NAME }}/health || exit 1
