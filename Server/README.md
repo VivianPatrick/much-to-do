@@ -80,6 +80,7 @@ make dc-up
 
 Download the necessary Go modules.
 
+
 ```bash
 go mod tidy
 ```
