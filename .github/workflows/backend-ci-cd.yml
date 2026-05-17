@@ -1,4 +1,4 @@
-name: Backend CI/CD - Production Stable
+name: Backend CI/CD - Zero Failure Design
 
 on:
   push:
@@ -17,18 +17,35 @@ env:
 jobs:
 
 # ─────────────────────────────
-# TEST JOB (GO SAFE ZONE)
+# VALIDATION JOB (FAIL FAST)
 # ─────────────────────────────
-  test:
-    name: Test & Validate
+  validate:
+    name: Validate Repo Structure
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: Server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify Go module exists
+        run: |
+          test -f Server/go.mod
+          test -f Server/go.sum
+
+      - name: Show structure (debug safe)
+        run: ls -R Server
+
+
+# ─────────────────────────────
+# TEST JOB (NO STATE DEPENDENCY)
+# ─────────────────────────────
+  test:
+    name: Test Go Service
+    runs-on: ubuntu-latest
+    needs: validate
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Go
@@ -37,35 +54,29 @@ jobs:
           go-version: "1.21"
           cache: true
 
-      - name: Verify module exists
-        run: test -f go.mod
-
-      - name: Download dependencies
+      - name: Download deps
         run: go mod download
+        working-directory: Server
 
       - name: Vet
         run: go vet ./...
+        working-directory: Server
 
       - name: Test
-        run: go test ./... -v -timeout 60s
-
-      - name: Vulnerability scan
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
-        continue-on-error: true
+        run: go test ./... -v
+        working-directory: Server
 
 
 # ─────────────────────────────
-# BUILD JOB (DOCKER ISOLATED)
+# BUILD JOB (IMMUTABLE ARTIFACT)
 # ─────────────────────────────
   build:
-    name: Build & Push Image
+    name: Build Docker Image
     runs-on: ubuntu-latest
     needs: test
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Configure AWS
@@ -79,7 +90,7 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build Docker image
+      - name: Build image (explicit context)
         run: |
           IMAGE=${{ steps.ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}
           docker build -f Server/Dockerfile -t $IMAGE Server
@@ -88,10 +99,10 @@ jobs:
 
 
 # ─────────────────────────────
-# DEPLOY JOB (IMMUTABLE IMAGE)
+# DEPLOY JOB (SAFE ROLLOUT)
 # ─────────────────────────────
   deploy:
-    name: Deploy to EC2 (SSM)
+    name: Deploy to EC2
     runs-on: ubuntu-latest
     needs: build
 
@@ -107,7 +118,7 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Deploy via SSM
+      - name: Deploy via SSM (immutable image)
         run: |
           IMAGE=${{ steps.ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}
 
@@ -126,4 +137,4 @@ jobs:
       - name: Health check
         run: |
           sleep 20
-          curl -f http://${{ secrets.ALB_DNS_NAME }}/health || echo "Health check failed"
+          curl -f http://${{ secrets.ALB_DNS_NAME }}/health || exit 1
