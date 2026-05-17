@@ -83,7 +83,6 @@ go mod tidy
 ```bash
 make tidy
 ```
-
 ### 5. Generate API Documentation
 
 Generate the Swagger/OpenAPI documentation from the code comments.
