@@ -89,7 +89,6 @@ make tidy
 ### 5. Generate API Documentation
 
 Generate the Swagger/OpenAPI documentation from the code comments.
-
 ```bash
 swag init -g cmd/api/main.go
 ```
