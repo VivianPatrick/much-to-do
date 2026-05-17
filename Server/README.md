@@ -5,7 +5,6 @@ A robust RESTful API for a ToDo application built with Go (Golang). This project
 The API is built with a clean, layered architecture to separate concerns, making it scalable and easy to maintain. It includes a full suite of unit and integration tests and provides interactive API documentation via Swagger.
 
 ## Features
-
 * **User Management**: Secure user registration, login, update, and deletion.
 * **Authentication**: JWT-based authentication that supports both `httpOnly` cookies (for web clients) and `Authorization` headers.
 * **CRUD for ToDos**: Full create, read, update, and delete functionality for user-specific ToDo items.
