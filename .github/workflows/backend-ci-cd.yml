@@ -28,16 +28,16 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Confirm Go module exists
-        run: test -f go.mod
-        working-directory: Server
+        run: |
+          test -f Server/go.mod
+          test -f Server/go.sum
 
-      - name: Show Server directory
-        run: ls -R
-        working-directory: Server
+      - name: Show project structure
+        run: ls -R Server
 
 
 # ─────────────────────────────
-# TEST JOB (GO RELIABLE EXECUTION)
+# TEST JOB (GO BUILD VALIDATION)
 # ─────────────────────────────
   test:
     name: Test Backend
@@ -55,22 +55,19 @@ jobs:
           cache: true
 
       - name: Download dependencies
-        run: go mod download
-        working-directory: Server
+        run: cd Server && go mod download
 
       - name: Run vet
-        run: go vet ./...
-        working-directory: Server
+        run: cd Server && go vet ./...
 
       - name: Run tests
-        run: go test ./... -v -timeout 60s
-        working-directory: Server
+        run: cd Server && go test ./... -v -timeout 60s
 
       - name: Vulnerability scan
         run: |
+          cd Server
           go install golang.org/x/vuln/cmd/govulncheck@latest
           govulncheck ./...
-        working-directory: Server
         continue-on-error: true
 
 
