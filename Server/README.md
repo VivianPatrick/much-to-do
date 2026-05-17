@@ -102,6 +102,7 @@ make generate-docs
 
 ### 6. Run the Application
 
+
 You can now run the API server.
 
 ```bash
