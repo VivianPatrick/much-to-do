@@ -1,11 +1,7 @@
 # MuchToDo API
-
 A robust RESTful API for a ToDo application built with Go (Golang). This project features user authentication, JWT-based session management, CRUD operations for ToDo items, and an optional Redis caching layer.
-
 The API is built with a clean, layered architecture to separate concerns, making it scalable and easy to maintain. It includes a full suite of unit and integration tests and provides interactive API documentation via Swagger.
-
 ## Features
-
 * **User Management**: Secure user registration, login, update, and deletion.
 * **Authentication**: JWT-based authentication that supports both `httpOnly` cookies (for web clients) and `Authorization` headers.
 * **CRUD for ToDos**: Full create, read, update, and delete functionality for user-specific ToDo items.
@@ -18,7 +14,6 @@ The API is built with a clean, layered architecture to separate concerns, making
 ## Prerequisites
 
 To run this project locally, you will need the following installed:
-
 * **Go**: Version 1.21 or later.
 * **Swag CLI**: To generate the Swagger API documentation.
 * **Make** (optional, for easier command execution):
@@ -34,7 +29,6 @@ To run this project locally, you will need the following installed:
 ```bash
 go install github.com/swaggo/swag/cmd/swag@latest
 ```
-
 ## Using Make
 
 This project includes a `Makefile` to simplify common development tasks. You can use `make <target>` to run commands such as starting the server, building, running tests, and managing Docker containers.
@@ -55,8 +49,8 @@ Create a `.env` file in the root of the project by copying the example.
 ```bash
 cp .env.example .env
 ```
-
 Now, open the `.env` file and **change the** `JWT_SECRET_KEY` to a new, long, random string.
+
 
 Also, ensure that the `MONGO_URI` and `DB_NAME` points to your local MongoDB instance and db.
 
@@ -78,6 +72,7 @@ make dc-up
 
 Download the necessary Go modules.
 
+
 ```bash
 go mod tidy
 ```
@@ -85,11 +80,9 @@ go mod tidy
 ```bash
 make tidy
 ```
-
 ### 5. Generate API Documentation
 
 Generate the Swagger/OpenAPI documentation from the code comments.
-
 ```bash
 swag init -g cmd/api/main.go
 ```
@@ -100,7 +93,9 @@ make generate-docs
 
 ### 6. Run the Application
 
+
 You can now run the API server.
+
 
 ```bash
 go run ./cmd/api/main.go
@@ -116,6 +111,7 @@ The server will start, and you should see log output in your terminal.
 * The interactive Swagger documentation will be at `http://localhost:8080/swagger/index.html`.
 
 ## Running Tests
+
 
 The project includes both unit and integration tests.
 
@@ -146,6 +142,7 @@ make integration-test
 The `INTEGRATION=true` environment variable is required to explicitly enable these tests. The `-v` flag provides verbose output.
 
 ## Other Useful Make Commands
+
 
 - **Build the binary:**  
   ```bash
