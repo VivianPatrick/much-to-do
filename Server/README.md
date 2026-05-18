@@ -29,7 +29,6 @@ To run this project locally, you will need the following installed:
 ```bash
 go install github.com/swaggo/swag/cmd/swag@latest
 ```
-
 ## Using Make
 
 This project includes a `Makefile` to simplify common development tasks. You can use `make <target>` to run commands such as starting the server, building, running tests, and managing Docker containers.
