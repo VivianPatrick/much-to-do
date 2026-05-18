@@ -23,7 +23,6 @@ To run this project locally, you will need the following installed:
   ```bash
   brew install make
   ```
-
   On Linux, `make` is usually pre-installed or available via your package manager.
 
 ```bash
