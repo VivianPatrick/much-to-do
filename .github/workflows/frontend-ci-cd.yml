@@ -43,7 +43,7 @@ jobs:
         working-directory: Client
         run: npm run build
         env:
-          VITE_API_BASE_URL: https://d1g54xoqackiju.cloudfront.net
+          VITE_API_BASE_URL: https://d279zyzdstaw6y.cloudfront.net
           CI: false
 
       - name: Upload build artifact
